@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-serif: "Cinzel", serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#030712] text-slate-200 font-['Inter'];
+  }
+}
+
+@layer components {
+  /* Custom Scrollbar for Dark Theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.2);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(245, 158, 11, 0.4);
+  }
+}
+
+@layer utilities {
+  .font-cinzel {
+    font-family: 'Cinzel', serif;
+  }
+  
+  .glass-panel {
+    @apply bg-slate-900/40 backdrop-blur-2xl border border-white/5 shadow-2xl;
+  }
+  
+  .glass-input {
+    @apply bg-slate-800/50 backdrop-blur-xl border border-white/10 focus:border-amber-500/50 transition-all outline-none;
+  }
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-15px) scale(1.02); }
+}
+
+.animate-float {
+  animation: float 15s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 18s ease-in-out infinite 2s;
+}
+
+.message-enter {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
