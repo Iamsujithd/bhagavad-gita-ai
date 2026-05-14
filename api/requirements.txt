@@ -1,11 +1,7 @@
 fastapi
 uvicorn
-langchain
-faiss-cpu
-sentence-transformers
 pydantic
 httpx
 python-dotenv
 langchain-groq
-langchain-community
 requests

@@ -1,9 +1,7 @@
 import os
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+import json
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -17,18 +15,25 @@ class GitaRAG:
             max_tokens=1024,
         )
         
-        # Load FAISS index
-        index_path = os.path.join(os.path.dirname(__file__), "data", "faiss_index")
-        print(f"Loading FAISS index from {index_path}...")
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        self.vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-        self.retriever = self.vector_store.as_retriever(search_kwargs={"k": 2})
+        # Load JSON directly to avoid heavy ML libraries for Vercel
+        data_path = os.path.join(os.path.dirname(__file__), "data", "gita.json")
+        with open(data_path, 'r', encoding='utf-8') as f:
+            self.shlokas = json.load(f)
+            
+        context_lines = []
+        for s in self.shlokas:
+            context_lines.append(
+                f"Chapter {s['chapter']}, Verse {s['verse']}:\n"
+                f"Sanskrit: {s['sanskrit']}\n"
+                f"Translation: {s['translation']}"
+            )
+        self.knowledge_context = "\n\n---\n\n".join(context_lines)
         
         # Setup Prompt
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", "You are the Bhagavad Gita AI Chatbot, an intelligent, compassionate, and wise conversational assistant. "
                        "Your purpose is to answer philosophical, ethical, and life-related questions using the timeless wisdom of the Bhagavad Gita. "
-                       "You have retrieved the following relevant Shlokas (verses) based on the user's question:\n\n{context}\n\n"
+                       "Here are the relevant Shlokas (verses) for your knowledge:\n\n{context}\n\n"
                        "Using the provided verses, explain the deeper meaning, provide modern practical guidance, and answer the user's query respectfully. "
                        "Keep your response concise but profound. Do not make up any shlokas; strictly use the context provided. "
                        "IMPORTANT: The user has selected '{language}' as their preferred language. You MUST reply fluently in {language}, ensuring the translation is culturally nuanced and highly accurate. If the language is Kannada, respond fully in Kannada script."),
@@ -36,23 +41,10 @@ class GitaRAG:
             ("user", "{question}")
         ])
         
-        # Build Chain
-        def format_docs(docs):
-            formatted = []
-            for d in docs:
-                m = d.metadata
-                formatted.append(
-                    f"Chapter {m['chapter']}, Verse {m['verse']}:\n"
-                    f"Sanskrit: {m['sanskrit']}\n"
-                    f"Transliteration: {m['transliteration']}\n"
-                    f"Translation: {m['translation']}"
-                )
-            return "\n\n---\n\n".join(formatted)
-            
         from operator import itemgetter
         self.chain = (
             {
-                "context": itemgetter("question") | self.retriever | format_docs,
+                "context": itemgetter("context"),
                 "question": itemgetter("question"),
                 "language": itemgetter("language"),
                 "history": itemgetter("history")
@@ -73,16 +65,25 @@ class GitaRAG:
             elif msg.get('role') == 'ai':
                 history.append(AIMessage(content=msg.get('content', '')))
                 
-        # Retrieve docs manually to return them alongside the answer
-        docs = self.retriever.invoke(query)
-        shlokas = [doc.metadata for doc in docs]
-        
         # Generate answer
-        answer = self.chain.invoke({"question": query, "language": language, "history": history})
+        answer = self.chain.invoke({
+            "context": self.knowledge_context,
+            "question": query, 
+            "language": language, 
+            "history": history
+        })
+        
+        # Determine cited shloka for UI reference box
+        cited_shlokas = []
+        for s in self.shlokas:
+            # If the LLM mentions the chapter/verse or translation snippet
+            if f"Chapter {s['chapter']}" in answer or s['translation'][:15] in answer:
+                cited_shlokas.append(s)
+                break
         
         return {
             "answer": answer,
-            "shlokas": shlokas
+            "shlokas": cited_shlokas
         }
 
 if __name__ == "__main__":
