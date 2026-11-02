@@ -30,8 +30,9 @@ class GitaRAG:
     def __init__(self, groq_api_key: str):
         # Initialize Groq LLM
         os.environ["GROQ_API_KEY"] = groq_api_key
+        groq_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
         self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model=groq_model,
             temperature=0.3,
             max_tokens=1024,
         )
